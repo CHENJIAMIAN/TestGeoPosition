@@ -6,16 +6,14 @@
     android:layout_height="match_parent"
     tools:context="test.alexander.ru.testapp.MainActivity">
 
-    <Button
-        android:id="@+id/buttonGeo"
-        android:layout_width="wrap_content"
+    <TextView
+        android:id="@+id/Location"
+        android:layout_width="368dp"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="8dp"
-        android:layout_marginTop="8dp"
-        android:text="@string/button_next_activity"
-        app:layout_constraintHorizontal_bias="0.466"
+        android:layout_marginLeft="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="10dp"
+        android:textSize="18sp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:text="GetPosition" />
+        tools:ignore="MissingConstraints" />
 </android.support.constraint.ConstraintLayout>

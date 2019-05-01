@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">GeoPosition</string>
-    <string name="button_next_activity">Узнать свое местоположение</string>
+    <string name="button_next_activity">显示位置</string>
 </resources>
