@@ -45,8 +45,18 @@ public class Activity_Geo extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0, 0, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0,locationListener);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
 
     }
 
@@ -56,7 +66,7 @@ public class Activity_Geo extends AppCompatActivity {
         locationManager.removeUpdates(locationListener);
     }
 
-    private LocationListener locationListener = new LocationListener() {
+    public LocationListener locationListener = new LocationListener() {
 
         @Override
         public void onLocationChanged(Location location) {
@@ -70,6 +80,16 @@ public class Activity_Geo extends AppCompatActivity {
 
         @Override
         public void onProviderEnabled(String provider) {
+            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
             showLocation(locationManager.getLastKnownLocation(provider));
         }
 
@@ -92,9 +112,9 @@ public class Activity_Geo extends AppCompatActivity {
            return "";
         }
 
-        String resultStr = "Текущие координаты: Широта: " + location.getLatitude()
-               + ". Долгота:" + location.getLongitude() + ". Время замера: " + String.format("%1$tF %1$tT", new Date(
-                location.getTime())) + ". Источник: " + location.getProvider();
+        String resultStr = "经度: " + location.getLatitude()
+               + "\n纬度:" + location.getLongitude() + "\n时间: " + String.format("%1$tF %1$tT", new Date(
+                location.getTime())) + "\n定位设备: " + location.getProvider();
 
         return resultStr;
     }
