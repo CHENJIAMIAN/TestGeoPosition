@@ -8,12 +8,13 @@
 
     <TextView
         android:id="@+id/Location"
-        android:layout_width="368dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginLeft="16dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="10dp"
         android:textSize="18sp"
+        android:textIsSelectable="true"
         app:layout_constraintLeft_toLeftOf="parent"
         tools:ignore="MissingConstraints" />
 </android.support.constraint.ConstraintLayout>

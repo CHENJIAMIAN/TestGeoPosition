@@ -13,5 +13,6 @@ public class ExampleUnitTest {
     @Test
     public void addition_isCorrect() throws Exception {
         assertEquals(4, 2 + 2);
+        RestPutTask.PUT(123.123456789,456.123456789);
     }
 }
