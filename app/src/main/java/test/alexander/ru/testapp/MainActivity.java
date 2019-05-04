@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onLocationChanged(Location location) {
-            Toast.makeText(getApplicationContext(), "获取位置...", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "获取位置...", Toast.LENGTH_SHORT).show();
             showLocation(location);
         }
 
@@ -98,7 +98,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        Toast.makeText(this, "onRequestPermissionsResult", Toast.LENGTH_LONG).show();
         switch (requestCode) {
             case 1: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -131,8 +130,9 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("MissingPermission")
     private void doLocationing() {
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, 0, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3000, 0, locationListener);
+        //每隔2s 更新一次 位置
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000, 0, locationListener);
     }
 
     @Override
@@ -229,6 +229,7 @@ public class MainActivity extends AppCompatActivity {
         }
         private Integer GetIsSafe(){
             String result = "";
+            int isSafe=1;
             JSONObject jsonObject = null;;
             try {
                 URL url = new URL("https://api2.bmob.cn/1/classes/IsSafe/23611c62ee");
@@ -250,6 +251,7 @@ public class MainActivity extends AppCompatActivity {
                     result= "请求失败----Code:" + conn.getResponseCode() + "Message:" + conn.getResponseMessage();
                 }
                 jsonObject = new JSONObject(result);
+                isSafe=jsonObject.optInt("isSafe");
 
                 conn.disconnect();// 断开连接
 
@@ -262,7 +264,6 @@ public class MainActivity extends AppCompatActivity {
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-            int isSafe=jsonObject.optInt("isSafe");
             return isSafe;
         }
         @Override
@@ -285,7 +286,10 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //报警处理,震动,显示红色
+
+    /**
+     * 报警处理,震动,显示红色
+     */
     private void doWarning() {
         vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         vibrator.vibrate(2000);  // 设置手机振动
@@ -294,7 +298,9 @@ public class MainActivity extends AppCompatActivity {
             findViewById(R.id.ConstraintLayout).setBackground(getDrawable(R.color.red));
         }
     }
-    //取消报警处理,震动,显示红色
+    /**
+     * 取消报警处理,震动,显示红色
+     */
     private void undoWarning() {
         if(null!=vibrator){
             vibrator.cancel();// 关闭振动
