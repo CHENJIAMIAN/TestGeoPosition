@@ -1,6 +1,15 @@
 package test.alexander.ru.testapp;
 
+import org.json.JSONObject;
 import org.junit.Test;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
 
 import static org.junit.Assert.*;
 
@@ -13,6 +22,5 @@ public class ExampleUnitTest {
     @Test
     public void addition_isCorrect() throws Exception {
         assertEquals(4, 2 + 2);
-        RestPutTask.PUT(123.123456789,456.123456789);
     }
 }

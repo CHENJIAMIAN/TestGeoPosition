@@ -1,4 +1,3 @@
 <resources>
-    <string name="app_name">GeoPosition</string>
-    <string name="button_next_activity">显示位置</string>
+    <string name="app_name">人员位置安全预警系统</string>
 </resources>
