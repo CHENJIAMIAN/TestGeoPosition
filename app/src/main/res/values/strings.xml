@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">人员安全预警</string>
+    <string name="safe">安全</string>
+    <string name="unsafe">危险</string>
 </resources>

@@ -2,20 +2,48 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/ConstraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="test.alexander.ru.testapp.MainActivity"
-    android:id="@+id/ConstraintLayout">
+    tools:context="test.alexander.ru.testapp.MainActivity">
 
     <TextView
-        android:id="@+id/Location"
+        android:id="@+id/LocationStatsSafe"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="16dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="10dp"
-        android:textSize="18sp"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal|center_vertical"
+        android:text="@string/safe"
+        android:textColor="@color/primaryColor"
         android:textIsSelectable="true"
+        android:textSize="300sp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.6"
         app:layout_constraintLeft_toLeftOf="parent"
-        tools:ignore="MissingConstraints" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.175"
+        tools:ignore="MissingConstraints"
+        tools:text="安全" />
+
+    <TextView
+        android:id="@+id/LocationStatsUnSafe"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal|center_vertical"
+        android:text="@string/unsafe"
+        android:textColor="@color/white"
+        android:textIsSelectable="true"
+        android:textSize="300sp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.557"
+        tools:ignore="MissingConstraints"
+        tools:text="危险" />
 </android.support.constraint.ConstraintLayout>

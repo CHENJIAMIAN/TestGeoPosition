@@ -4,9 +4,12 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.AssetFileDescriptor;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -14,10 +17,11 @@ import android.os.Bundle;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
-import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,19 +36,25 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
-import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
-    TextView locationText;
+    private TextView locationStatsTextSafe;
+    private TextView locationStatsTextUnSafe;
     private LocationManager locationManager;
-    Vibrator vibrator;
-    private LocationListener locationListener = new LocationListener() {
+    private AudioManager audioService;
+    private Vibrator vibrator;
+    private AssetFileDescriptor fileBee;
+    private AlertDialog warningDialog;
+
+    public LocationListener locationListener = new LocationListener() {
 
         @Override
         public void onLocationChanged(Location location) {
             Toast.makeText(getApplicationContext(), "获取位置...", Toast.LENGTH_SHORT).show();
-            showLocation(location);
+            if (location != null) {
+                new RestPutTask().execute(location.getLongitude(), location.getLatitude());
+            }
         }
 
         @Override
@@ -55,7 +65,10 @@ public class MainActivity extends AppCompatActivity {
         @SuppressLint("MissingPermission")
         @Override
         public void onProviderEnabled(String provider) {
-            showLocation(locationManager.getLastKnownLocation(provider));
+            Location location=locationManager.getLastKnownLocation(provider);
+            if (location != null) {
+                new RestPutTask().execute(location.getLongitude(), location.getLatitude());
+            }
         }
 
         @Override
@@ -65,9 +78,17 @@ public class MainActivity extends AppCompatActivity {
     };
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        doLocationing();
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         locationManager.removeUpdates(locationListener);
+        vibrator.cancel();
+        mediaPlayer.pause();
     }
 
     @SuppressLint("MissingPermission")
@@ -139,9 +160,32 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        locationText = (TextView) findViewById(R.id.Location);
-        locationText.setText("..........");
+        vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        audioService = (AudioManager) getSystemService(AUDIO_SERVICE);
+        fileBee = getResources().openRawResourceFd(R.raw.bee);
+        //设定数据源，并准备播放
+        try {
+            mediaPlayer.setDataSource(fileBee.getFileDescriptor(), fileBee.getStartOffset(), fileBee.getLength());
+            fileBee.close();
+            mediaPlayer.setVolume(0.2f, 0.2f);
+            mediaPlayer.setLooping(true);
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mediaPlayer.prepare();
+        } catch (IOException ioe) {
+            mediaPlayer = null;
+        }
+
+        locationStatsTextSafe =  findViewById(R.id.LocationStatsSafe);
+        locationStatsTextUnSafe = findViewById(R.id.LocationStatsUnSafe);
+
+        // 警报图标对话框
+        AlertDialog.Builder builder = new AlertDialog.Builder(this,R.style.AlertDialog);
+        final View WarnIcon = getLayoutInflater().inflate(R.layout.warn_icon, null);
+        builder.setView(WarnIcon);
+        warningDialog = builder.create();
+
         //没有权限
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -159,28 +203,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void showLocation(Location location) {
-        if (location != null) {
-            locationText.setText(formatLocation(location));
-            new RestPutTask().execute(location.getLongitude(), location.getLatitude());
-        }
 
-
-    }
-
-    private String formatLocation(final Location location) {
-        if (location == null) {
-            return "";
-        }
-
-        String resultStr = location.getLongitude() + " , " + location.getLatitude()
-                + "\n" + String.format("%1$tF %1$tT", new Date(location.getTime()))
-                + "\n" + location.getProvider();
-
-        new RestPutTask().execute(location.getLongitude(), location.getLatitude());
-        return resultStr;
-
-    }
 
     class RestPutTask extends AsyncTask<Double, Void, Integer> {
         private String PutPosition(final double lon, final double lat) {
@@ -227,10 +250,12 @@ public class MainActivity extends AppCompatActivity {
             return result;
 
         }
-        private Integer GetIsSafe(){
+
+        private Integer GetIsSafe() {
             String result = "";
-            int isSafe=1;
-            JSONObject jsonObject = null;;
+            int isSafe = 1;
+            JSONObject jsonObject = null;
+            ;
             try {
                 URL url = new URL("https://api2.bmob.cn/1/classes/IsSafe/23611c62ee");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -248,10 +273,10 @@ public class MainActivity extends AppCompatActivity {
                         result += line;
                     }
                 } else {
-                    result= "请求失败----Code:" + conn.getResponseCode() + "Message:" + conn.getResponseMessage();
+                    result = "请求失败----Code:" + conn.getResponseCode() + "Message:" + conn.getResponseMessage();
                 }
                 jsonObject = new JSONObject(result);
-                isSafe=jsonObject.optInt("isSafe");
+                isSafe = jsonObject.optInt("isSafe");
 
                 conn.disconnect();// 断开连接
 
@@ -266,48 +291,75 @@ public class MainActivity extends AppCompatActivity {
             }
             return isSafe;
         }
+
         @Override
         protected Integer doInBackground(Double... doubles) {
             PutPosition(doubles[0], doubles[1]);
-            int isSafe= GetIsSafe();
-            return isSafe;
+            return GetIsSafe();
         }
+
         @Override
         protected void onPostExecute(Integer isSafe) {
             super.onPostExecute(isSafe);
-//            locationText.setText(locationText.getText() + "\n" + isSafe);
-            if(isSafe==1){
+            if(IS_SAFE==isSafe) return;
+            if (isSafe == 1) {
+                IS_SAFE=isSafe;
                 undoWarning();
-            }else {
+            } else {
+                IS_SAFE=isSafe;
                 doWarning();
             }
         }
 
 
     }
+    int IS_SAFE=1;
+    MediaPlayer mediaPlayer = new MediaPlayer();
 
+    boolean shouldPlayBeep = true;
 
     /**
      * 报警处理,震动,显示红色
      */
     private void doWarning() {
-        vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-        vibrator.vibrate(2000);  // 设置手机振动
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getSupportActionBar().setBackgroundDrawable(getDrawable(R.color.red));
             findViewById(R.id.ConstraintLayout).setBackground(getDrawable(R.color.red));
+            locationStatsTextSafe.setVisibility(View.INVISIBLE);
+            locationStatsTextUnSafe.setVisibility(View.VISIBLE);
+        }
+        // 设置手机振动
+        vibrator.vibrate(100);
+
+        // 开始播放警报声
+        shouldPlayBeep = true;
+        //静音或震动模式
+        if (audioService.getRingerMode() != AudioManager.RINGER_MODE_NORMAL) {
+            shouldPlayBeep = false;
+            mediaPlayer.pause();
+        }
+        if (shouldPlayBeep && mediaPlayer != null && !mediaPlayer.isPlaying()) {
+            mediaPlayer.start();
         }
     }
+
     /**
      * 取消报警处理,震动,显示红色
      */
     private void undoWarning() {
-        if(null!=vibrator){
-            vibrator.cancel();// 关闭振动
-        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getSupportActionBar().setBackgroundDrawable(getDrawable(R.color.primaryColor));
             findViewById(R.id.ConstraintLayout).setBackground(getDrawable(R.color.white));
+            locationStatsTextSafe.setVisibility(View.VISIBLE);
+            locationStatsTextUnSafe.setVisibility(View.INVISIBLE);
+        }
+        if (null != vibrator) {
+            vibrator.cancel();// 关闭振动
+            shouldPlayBeep = false;
+        }
+
+        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+            mediaPlayer.pause();
         }
     }
 }
