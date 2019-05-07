@@ -3,6 +3,7 @@ package test.alexander.ru.testapp;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.location.Location;
@@ -30,6 +31,7 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
@@ -46,14 +48,14 @@ public class MainActivity extends AppCompatActivity {
     private Vibrator vibrator;
     private AssetFileDescriptor fileBee;
     private AlertDialog warningDialog;
-
+    private String peopleName;
     public LocationListener locationListener = new LocationListener() {
 
         @Override
         public void onLocationChanged(Location location) {
             Toast.makeText(getApplicationContext(), "获取位置...", Toast.LENGTH_SHORT).show();
             if (location != null) {
-                new RestPutTask().execute(location.getLongitude(), location.getLatitude());
+                new RestPutTask().execute(location.getLongitude(), location.getLatitude(),peopleName);
             }
         }
 
@@ -67,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
         public void onProviderEnabled(String provider) {
             Location location=locationManager.getLastKnownLocation(provider);
             if (location != null) {
-                new RestPutTask().execute(location.getLongitude(), location.getLatitude());
+                new RestPutTask().execute(location.getLongitude(), location.getLatitude(),peopleName);
             }
         }
 
@@ -80,7 +82,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        doLocationing();
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            doLocationing();
+        }
     }
 
     @Override
@@ -152,15 +156,24 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("MissingPermission")
     private void doLocationing() {
         //每隔2s 更新一次 位置
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 0, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        //检测登录状态
+        final SharedPreferences pref = getSharedPreferences("data", MODE_PRIVATE);
+        String  prefpeopleName=pref.getString("peopleName", null);
+        if ( prefpeopleName== null) {
+            startActivity(new Intent(getApplicationContext(), LoginActivity.class));
+            finish();
+            return;
+        }
+        peopleName=prefpeopleName;
+        getSupportActionBar().setTitle("人员:"+peopleName);
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         audioService = (AudioManager) getSystemService(AUDIO_SERVICE);
@@ -205,11 +218,12 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-    class RestPutTask extends AsyncTask<Double, Void, Integer> {
-        private String PutPosition(final double lon, final double lat) {
+    class RestPutTask extends AsyncTask<Object, Void, Integer> {
+        private String PutPosition(final double lon, final double lat,String peopleName) {
             String result = "";
             try {
-                URL url = new URL("https://api2.bmob.cn/1/classes/position/b5bbd688b1");
+                URL url = new URL("https://api2.bmob.cn/1/classes/position?where={\"name\":\""+
+                        peopleName+"\"}");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
                 conn.setRequestMethod("PUT");
@@ -227,17 +241,28 @@ public class MainActivity extends AppCompatActivity {
                 out.print(jsonParam);
                 // flush输出流的缓冲
                 out.flush();
-                if (conn.getResponseCode() == 200) {
-                    // 定义BufferedReader输入流来读取URL的响应
-                    BufferedReader in = new BufferedReader(new InputStreamReader(
-                            conn.getInputStream()));
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        result += line;
-                    }
+                // handle error response code it occurs
+                int responseCode = conn.getResponseCode();
+                InputStream inputStream;
+                if (200 <= responseCode && responseCode <= 299) {
+                    inputStream = conn.getInputStream();
                 } else {
-                    return "请求失败----Code:" + conn.getResponseCode() + "Message:" + conn.getResponseMessage();
+                    inputStream = conn.getErrorStream();
                 }
+
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(
+                                inputStream));
+
+                StringBuilder response = new StringBuilder();
+                String currentLine;
+
+                while ((currentLine = in.readLine()) != null)
+                    response.append(currentLine);
+
+                in.close();
+
+                result = response.toString();
                 conn.disconnect();// 断开连接
 
             } catch (ProtocolException e) {
@@ -250,35 +275,42 @@ public class MainActivity extends AppCompatActivity {
             return result;
 
         }
-
-        private Integer GetIsSafe() {
+        private String GetIsSafe(String peopleName) {
             String result = "";
-            int isSafe = 1;
-            JSONObject jsonObject = null;
+
             ;
             try {
-                URL url = new URL("https://api2.bmob.cn/1/classes/IsSafe/23611c62ee");
+                URL url = new URL("https://api2.bmob.cn/1/classes/IsSafe?where={\"name\":\""+
+                        peopleName+"\"}");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-Bmob-Application-Id", "ae69ae4ad1b9328f1993c62a637454a7");
                 conn.setRequestProperty("X-Bmob-REST-API-Key", "05d377b293e63f9f9e22788154af1449");
-                // 获取URLConnection对象对应的输出流
-                if (conn.getResponseCode() == 200) {
-                    // 定义BufferedReader输入流来读取URL的响应
-                    BufferedReader in = new BufferedReader(new InputStreamReader(
-                            conn.getInputStream()));
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        result += line;
-                    }
+                // handle error response code it occurs
+                int responseCode = conn.getResponseCode();
+                InputStream inputStream;
+                if (200 <= responseCode && responseCode <= 299) {
+                    inputStream = conn.getInputStream();
                 } else {
-                    result = "请求失败----Code:" + conn.getResponseCode() + "Message:" + conn.getResponseMessage();
+                    inputStream = conn.getErrorStream();
                 }
-                jsonObject = new JSONObject(result);
-                isSafe = jsonObject.optInt("isSafe");
 
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(
+                                inputStream));
+
+                StringBuilder response = new StringBuilder();
+                String currentLine;
+
+                while ((currentLine = in.readLine()) != null)
+                    response.append(currentLine);
+
+                in.close();
+
+                result = response.toString();
                 conn.disconnect();// 断开连接
+
 
             } catch (ProtocolException e) {
                 e.printStackTrace();
@@ -286,6 +318,21 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
+            }
+            return result;
+        }
+
+        @Override
+        protected Integer doInBackground(Object... params) {
+            String  putPositionResults= PutPosition((double)params[0],(double) params[1],(String)params[2]);
+            String getIsSafeResults=GetIsSafe((String)params[2]);
+            Log.e("1", "doInBackground: "+putPositionResults );
+            Log.e("1", "doInBackground: "+getIsSafeResults);
+            int isSafe = 1;
+            JSONObject jsonObject;
+            try {
+                jsonObject = new JSONObject(getIsSafeResults);
+                isSafe = jsonObject.getJSONArray("results").getJSONObject(0).getInt("isSafe");
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -293,20 +340,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        protected Integer doInBackground(Double... doubles) {
-            PutPosition(doubles[0], doubles[1]);
-            return GetIsSafe();
-        }
-
-        @Override
         protected void onPostExecute(Integer isSafe) {
             super.onPostExecute(isSafe);
-            if(IS_SAFE==isSafe) return;
-            if (isSafe == 1) {
-                IS_SAFE=isSafe;
+            if (isSafe == 1 || isSafe==null) {
                 undoWarning();
             } else {
-                IS_SAFE=isSafe;
                 doWarning();
             }
         }
