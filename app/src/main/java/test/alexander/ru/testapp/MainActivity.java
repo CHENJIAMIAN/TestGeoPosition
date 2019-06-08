@@ -6,11 +6,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
+import android.graphics.Bitmap;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -23,6 +26,12 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.webkit.GeolocationPermissions;
+import android.webkit.JsResult;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,8 +48,8 @@ import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 
-public class MainActivity extends AppCompatActivity {
-
+public class MainActivity extends AppCompatActivity  implements LocationListener{
+    WebView webView;
     private TextView locationStatsTextSafe;
     private TextView locationStatsTextUnSafe;
     private LocationManager locationManager;
@@ -49,35 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private AssetFileDescriptor fileBee;
     private AlertDialog warningDialog;
     private String peopleName;
-    public LocationListener locationListener = new LocationListener() {
 
-        @Override
-        public void onLocationChanged(Location location) {
-            Toast.makeText(getApplicationContext(), "获取位置...", Toast.LENGTH_SHORT).show();
-            if (location != null) {
-                new RestPutTask().execute(location.getLongitude(), location.getLatitude(),peopleName);
-            }
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-
-        }
-
-        @SuppressLint("MissingPermission")
-        @Override
-        public void onProviderEnabled(String provider) {
-            Location location=locationManager.getLastKnownLocation(provider);
-            if (location != null) {
-                new RestPutTask().execute(location.getLongitude(), location.getLatitude(),peopleName);
-            }
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-
-        }
-    };
 
     @Override
     protected void onResume() {
@@ -90,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        locationManager.removeUpdates(locationListener);
+        locationManager.removeUpdates(this);
         vibrator.cancel();
         mediaPlayer.pause();
     }
@@ -155,15 +136,19 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("MissingPermission")
     private void doLocationing() {
+        Toast.makeText(getApplicationContext(), "doLocationing...", Toast.LENGTH_SHORT).show();
+
         //每隔2s 更新一次 位置
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,0,0,this);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
         //检测登录状态
         final SharedPreferences pref = getSharedPreferences("data", MODE_PRIVATE);
         String  prefpeopleName=pref.getString("peopleName", null);
@@ -190,7 +175,7 @@ public class MainActivity extends AppCompatActivity {
             mediaPlayer = null;
         }
 
-        locationStatsTextSafe =  findViewById(R.id.LocationStatsSafe);
+//        locationStatsTextSafe =  findViewById(R.id.LocationStatsSafe);
         locationStatsTextUnSafe = findViewById(R.id.LocationStatsUnSafe);
 
         // 警报图标对话框
@@ -214,8 +199,53 @@ public class MainActivity extends AppCompatActivity {
             Log.e("1", "已经有权限了");
             doLocationing();
         }
+
+        //添加地图webview
+        webView = (WebView) findViewById(R.id.wview);
+        WebSettings mWebSettings=webView.getSettings();
+
+        mWebSettings.setJavaScriptEnabled(true);
+        webView.setWebChromeClient(new WebChromeClient(){
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin,
+                                                           GeolocationPermissions.Callback callback) {
+                callback.invoke(origin, true, true);
+                super.onGeolocationPermissionsShowPrompt(origin, callback);
+            }
+        });
+
     }
 
+    @Override
+    public void onLocationChanged(Location location) {
+        Toast.makeText(getApplicationContext(), "获取位置...", Toast.LENGTH_SHORT).show();
+        String coordinate=location.getLongitude()+","+location.getLatitude();
+        String mapHTML="<!doctype html><html lang=\"en\"><head><link rel=\"stylesheet\"href=\"https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.3.0/css/ol.css\"type=\"text/css\"><style type=\"text/css\">html,body,.map{margin:0;padding:0;width:100%;height:100%}</style><script src=\"https://cdn.bootcss.com/openlayers/4.6.5/ol-debug.js\"></script><title>OpenLayers example</title></head><body><div id=\"map\"class=\"map\"></div><script type=\"text/javascript\">var map=new ol.Map({target:'map',layers:[new ol.layer.Tile({source:new ol.source.OSM()})],view:new ol.View({center:ol.proj.fromLonLat([112.91940620072556,27.907336633266738]),zoom:17})});var positionFeature=new ol.Feature();positionFeature.setStyle(new ol.style.Style({image:new ol.style.Circle({radius:6,fill:new ol.style.Fill({color:'#3399CC'}),stroke:new ol.style.Stroke({color:'#fff',width:2})})}));var coordinates=ol.proj.fromLonLat(["+coordinate+"]);positionFeature.setGeometry(coordinates?new ol.geom.Point(coordinates):null);new ol.layer.Vector({map:map,source:new ol.source.Vector({features:[positionFeature]})});</script></body></html>";
+        webView.loadData(mapHTML,"text/html",null);
+
+        if (location != null) {
+            new RestPutTask().execute(location.getLongitude(), location.getLatitude(),peopleName);
+        }
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
+
+    @SuppressLint("MissingPermission")
+    @Override
+    public void onProviderEnabled(String provider) {
+        Location location=locationManager.getLastKnownLocation(provider);
+        if (location != null) {
+            new RestPutTask().execute(location.getLongitude(), location.getLatitude(),peopleName);
+        }
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
 
 
     class RestPutTask extends AsyncTask<Object, Void, Integer> {
@@ -363,7 +393,7 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getSupportActionBar().setBackgroundDrawable(getDrawable(R.color.red));
             findViewById(R.id.ConstraintLayout).setBackground(getDrawable(R.color.red));
-            locationStatsTextSafe.setVisibility(View.INVISIBLE);
+//            locationStatsTextSafe.setVisibility(View.INVISIBLE);
             locationStatsTextUnSafe.setVisibility(View.VISIBLE);
         }
         // 设置手机振动
@@ -388,7 +418,7 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getSupportActionBar().setBackgroundDrawable(getDrawable(R.color.primaryColor));
             findViewById(R.id.ConstraintLayout).setBackground(getDrawable(R.color.white));
-            locationStatsTextSafe.setVisibility(View.VISIBLE);
+//            locationStatsTextSafe.setVisibility(View.VISIBLE);
             locationStatsTextUnSafe.setVisibility(View.INVISIBLE);
         }
         if (null != vibrator) {
